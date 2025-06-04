@@ -1,0 +1,106 @@
+# Load necessary libraries
+library(dplyr)
+library(writexl)
+library(lme4)  # For LMMs
+library(ggplot2)
+install.packages("broom.mixed")
+library(broom.mixed)  # For tidying LMM results
+
+# --- F1 Analysis --- #
+phonData_normalised$Condition <- relevel(factor(phonData_normalised$Condition), ref = "en_i")
+
+# Perform LMM to analyse the effect of Year of Study on Condition (Position + Language)
+lmm_model_F1 <- lm(norm_F1 ~ Condition * Year, data = phonData_normalised)
+
+# Tidy up the results for F1 (including p-values, standard errors, and confidence intervals)
+lmm_results_F1 <- tidy(lmm_model_F1, effects = "fixed", conf.int = TRUE, conf.level = 0.95)
+
+# Select relevant columns (estimate, std.error, conf.low, conf.high, p.value)
+lmm_results_F1 <- lmm_results_F1 %>%
+  select(
+    term, 
+    estimate, 
+    std.error, 
+    conf.low, 
+    conf.high, 
+    p.value
+  )
+
+# --- F2 Analysis --- #
+
+# Perform LMM to analyse the effect of Year of Study on Condition (Position + Language) for norm_F2
+lmm_model_F2 <- lm(norm_F2 ~ Condition * Year, data = phonData_normalised)
+
+# Tidy up the results for F2 (including p-values, standard errors, and confidence intervals)
+lmm_results_F2 <- tidy(lmm_model_F2, effects = "fixed", conf.int = TRUE, conf.level = 0.95)
+
+# Select relevant columns (estimate, std.error, conf.low, conf.high, p.value)
+lmm_results_F2 <- lmm_results_F2 %>%
+  select(
+    term, 
+    estimate, 
+    std.error, 
+    conf.low, 
+    conf.high, 
+    p.value
+  )
+
+# --- Participant Effects Analysis --- #
+
+# Perform LMM for Participant effects on norm_F1 (Condition effect on F1)
+participant_model_F1 <- lm(norm_F1 ~ Condition, data = phonData_normalised)
+
+# Tidy up the results for Participant effects (F1)
+participant_effects_F1 <- tidy(participant_model_F1, effects = "fixed", conf.int = TRUE, conf.level = 0.95)
+
+# Select relevant columns (estimate, std.error, conf.low, conf.high, p.value)
+participant_effects_F1 <- participant_effects_F1 %>%
+  select(
+    term, 
+    estimate, 
+    std.error, 
+    conf.low, 
+    conf.high, 
+    p.value
+  )
+
+# Perform LMM for Participant effects on norm_F2 (Condition effect on F2)
+participant_model_F2 <- lm(norm_F2 ~ Condition, data = phonData_normalised)
+
+# Tidy up the results for Participant effects (F2)
+participant_effects_F2 <- tidy(participant_model_F2, effects = "fixed", conf.int = TRUE, conf.level = 0.95)
+
+# Select relevant columns (estimate, std.error, conf.low, conf.high, p.value)
+participant_effects_F2 <- participant_effects_F2 %>%
+  select(
+    term, 
+    estimate, 
+    std.error, 
+    conf.low, 
+    conf.high, 
+    p.value
+  )
+
+# --- Prepare Data for Export --- #
+
+# Create a list to combine all the data
+all_data <- list(
+  Raw_Data = phonData_normalised,
+  Mean_by_Condition_F1 = phonData_normalised %>%
+    group_by(Participant, Condition) %>%
+    summarize(
+      mean_F1 = mean(norm_F1, na.rm = TRUE)
+    ),
+  Mean_by_Condition_F2 = phonData_normalised %>%
+    group_by(Participant, Condition) %>%
+    summarize(
+      mean_F2 = mean(norm_F2, na.rm = TRUE)
+    ),
+  Year_of_Study_Analysis_F1 = lmm_results_F1,    # Results from LMM on Year of Study for F1
+  Year_of_Study_Analysis_F2 = lmm_results_F2,    # Results from LMM on Year of Study for F2
+  Participant_Effects_F1 = participant_effects_F1, # Results from LMM on Participant effects for F1
+  Participant_Effects_F2 = participant_effects_F2  # Results from LMM on Participant effects for F2
+)
+
+# Export everything to an Excel file
+write_xlsx(all_data, "FINALLMM_F1_F2_Analysis_Results.xlsx")
