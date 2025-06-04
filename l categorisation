@@ -1,0 +1,86 @@
+library(dplyr)
+
+# Define the directory
+output_dir <- "/Users/juliettepinel/Desktop/fichierswav/allwav/M2"
+output_file <- paste(output_dir, "/CLASSoutputfinal.csv", sep="")
+
+# Filter for English language and final position
+phonData_filtered <- phonData_normalised %>%
+  filter(Language == "en" & Position == "f")
+
+# Calculate F2 - F1
+phonData_filtered$`F2-F1` <- phonData_filtered$F2 - phonData_filtered$F1
+
+# Function to categorise based on F2 values
+categorise_l <- function(f2) {
+  ifelse((f2 >= 450 & f2 <= 1200), "dark /l/",
+         ifelse((f2 >= 1500 & f2 <= 3000), "light /l/", "Unclassified"))
+}
+
+# Function to categorise based on F2-F1 values
+categorise_f2_minus_f1 <- function(f2_minus_f1) {
+  ifelse((f2_minus_f1 >= 300 & f2_minus_f1 <= 900), "dark /l/",
+         ifelse((f2_minus_f1 > 900 & f2_minus_f1 <= 2000), "light /l/", "Unclassified"))
+}
+
+# Function to merge categorisations
+merge_categorisations <- function(cat1, cat2) {
+  if (cat1 == "dark /l/" & cat2 == "light /l/") {
+    return("light /l/")
+  } else if (cat1 == "light /l/" & cat2 == "dark /l/") {
+    return("light /l/")
+  } else if (cat1 == "dark /l/" & cat2 == "Unclassified") {
+    return("dark /l/")
+  } else if (cat1 == "light /l/" & cat2 == "light /l/") {
+    return("light /l/")
+  } else if (cat1 == "dark /l/" & cat2 == "dark /l/") {
+    return("dark /l/")
+  } else if (cat1 == "Unclassified" & cat2 == "dark /l/") {
+    return("dark /l/")
+  } else if (cat1 == "Unclassified" & cat2 == "light /l/") {
+    return("light /l/")
+  } else if (cat1 == "light /l/" & cat2 == "Unclassified") {
+    return("light /l/")
+  } else {
+    return("Unclassified")
+  }
+}
+
+# Apply categorisation functions for F2 and F2-F1 values
+phonData_filtered$Classification <- categorise_l(phonData_filtered$F2)
+phonData_filtered$Classification_F2_F1 <- categorise_f2_minus_f1(phonData_filtered$`F2-F1`)
+
+# Apply final classification
+phonData_filtered$`Final_Classification` <- mapply(merge_categorisations, 
+                                                   phonData_filtered$Classification, 
+                                                   phonData_filtered$Classification_F2_F1)
+
+# Calculate the percentage of dark /ɫ/ for each participant
+dark_l_percentages <- phonData_filtered %>%
+  group_by(Participant) %>%
+  summarize(
+    total_tokens = n(),
+    dark_count = sum(Final_Classification == "dark /l/"),
+    dark_percentage = (dark_count / total_tokens) * 100
+  )
+
+# Categorise participants effectively
+dark_l_percentages <- dark_l_percentages %>%
+  mutate(Participant_Category.f.z = case_when(
+    is.na(dark_percentage) ~ "No classification data",
+    dark_percentage == 100 ~ "Only dark /l/",
+    dark_percentage >= 75 & dark_percentage < 100 ~ "Majority dark /l/",
+    dark_percentage > 50 & dark_percentage < 75 ~ "More dark than clear /l/",
+    dark_percentage == 50 ~ "Equal dark and clear /l/",
+    dark_percentage > 25 & dark_percentage < 50 ~ "More clear than dark /l/",
+    dark_percentage > 0 & dark_percentage <= 25 ~ "Majority clear /l/",
+    dark_percentage == 0 ~ "Only clear /l/"
+  ))
+
+# Merge the participant categories back into the normalised dataset
+phonData_normalised <- phonData_normalised %>%
+  left_join(dark_l_percentages %>% select(Participant, Participant_Category.f.z), by = "Participant")
+
+# Write the filtered and classified dataset to a CSV file
+write.csv(phonData_normalised[, c("Participant", "Mothertongue", "Language", "Year", "Prompt", "Repetition", "Position", "F1", "F2", "F2-F1", "Classification", "Classification_F2_F1", "Final_Classification", "Participant_Category.f.z")], 
+          file = output_file, row.names = FALSE)
