@@ -1,0 +1,46 @@
+library(dplyr)
+
+# Per speaker Lobanov normalisation
+phonData_normalised <- phonData %>%
+  group_by(Participant) %>%
+  mutate(
+    norm_F1 = (F1 - mean(F1, na.rm = TRUE)) / sd(F1, na.rm = TRUE),  # F1 Normalisation
+    norm_F2 = (F2 - mean(F2, na.rm = TRUE)) / sd(F2, na.rm = TRUE)   # F2 Normalisation
+  ) %>%
+  ungroup()
+
+# To check
+head(phonData_normalised)
+
+# Statistic summary
+summary(phonData_normalised$norm_F1)
+summary(phonData_normalised$norm_F2)
+
+library(ggplot2)
+
+ggplot(phonData_normalised) +
+  geom_density(aes(x = F1), fill = "pink", alpha = 0.5) +
+  labs(title = "Distribution of F1 (Original)", x = "F1", y = "Density") +
+  theme_minimal()
+
+ggplot(phonData_normalised) +
+  geom_density(aes(x = norm_F1), fill = "darkgreen", alpha = 0.5) +
+  labs(title = "Distribution of F1 (Normalised)", x = "Normalised F1", y = "Density") +
+  theme_minimal()
+
+ggplot(phonData_normalised) +
+  geom_density(aes(x = F2), fill = "darkorange", alpha = 0.5) +
+  labs(title = "Distribution of F2 (Original)", x = "F2", y = "Density") +
+  theme_minimal()
+
+ggplot(phonData_normalised) +
+  geom_density(aes(x = norm_F2), fill = "lightblue", alpha = 0.5) +
+  labs(title = "Distribution of F2 (Normalised)", x = "Normalised F2", y = "Density") +
+  theme_minimal()
+
+# Compare the mean and standard deviation of the original and normalised values
+summary(phonData_normalised$F1)       # Original F1
+summary(phonData_normalised$norm_F1)  # Normalised F1
+
+summary(phonData_normalised$F2)       # Original F2
+summary(phonData_normalised$norm_F2)  # Normalised F2
